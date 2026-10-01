@@ -24,3 +24,7 @@ Receive multiple batches of one ingredient with different expiries, open FEFO to
 
 ## Next phase
 Demand forecasting, expiry-risk scoring, smart purchase recommendations, invoice OCR, and an AI inventory copilot.
+
+
+## V3 Predictive Intelligence
+Adds explainable consumption-velocity forecasting, batch-level expiry exposure, 7-day demand forecasting, safety-stock-aware purchase recommendations, and transparent forecast-basis labels. Demo baselines are used only when insufficient observed consumption history exists.
