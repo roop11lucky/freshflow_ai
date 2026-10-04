@@ -13,6 +13,9 @@ def connect():
 
 
 def init_db():
+    # Used by both first-time seed data and V4 migration seed data.
+    # Keep this outside conditional seed blocks so upgrades from V3 databases work.
+    today = date.today()
     with connect() as c:
         c.executescript('''
         CREATE TABLE IF NOT EXISTS batches(
@@ -30,7 +33,6 @@ def init_db():
           quality_score REAL, notes TEXT);
         ''')
         if c.execute('SELECT COUNT(*) FROM batches').fetchone()[0] == 0:
-            today = date.today()
             seed = [
               ('CH-102','Chicken Breast','Coastal Proteins',12,12,'kg',400,today.isoformat(),(today+timedelta(days=1)).isoformat()),
               ('CH-101','Chicken Breast','Coastal Proteins',16,16,'kg',400,(today-timedelta(days=1)).isoformat(),(today+timedelta(days=5)).isoformat()),
