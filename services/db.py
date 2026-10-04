@@ -22,6 +22,12 @@ def init_db():
         CREATE TABLE IF NOT EXISTS transactions(
           id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT, ingredient TEXT,
           type TEXT, qty REAL, reason TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS demand_history(
+          id INTEGER PRIMARY KEY AUTOINCREMENT, demand_date TEXT, ingredient TEXT,
+          qty REAL, source TEXT DEFAULT 'Simulated POS');
+        CREATE TABLE IF NOT EXISTS suppliers(
+          supplier TEXT PRIMARY KEY, lead_time_days INTEGER, on_time_pct REAL,
+          quality_score REAL, notes TEXT);
         ''')
         if c.execute('SELECT COUNT(*) FROM batches').fetchone()[0] == 0:
             today = date.today()
@@ -62,6 +68,40 @@ def init_db():
             # Reflect seeded events in stock.
             for bid, _, typ, qty, _ in tx:
                 c.execute('UPDATE batches SET qty=qty-? WHERE batch_id=?', (qty, bid))
+
+        # V4: deterministic 120-day historical demand for model evaluation/demo.
+        if c.execute('SELECT COUNT(*) FROM demand_history').fetchone()[0] == 0:
+            import math
+            base = {
+              'Chicken Breast':6.2,'Paneer':3.2,'Milk':7.0,'Fresh Cream':1.4,'Curd':2.8,
+              'Fish Fillet':2.6,'Mutton':2.4,'Eggs':32.0,'Tomato':6.5,'Onion':5.0,
+              'Capsicum':2.1,'Coriander':1.4,'Potato':5.5,'Basmati Rice':7.5,'Atta':4.2,
+              'Toor Dal':2.5,'Cooking Oil':2.2,'French Fries':3.0,'Frozen Peas':1.7
+            }
+            hist=[]
+            for ing, avg in base.items():
+                for ago in range(120, 0, -1):
+                    d=today-timedelta(days=ago)
+                    weekend = 1.18 if d.weekday() >= 5 else 1.0
+                    wave = 1 + 0.12*math.sin(ago*0.47 + len(ing))
+                    trend = 1 + (120-ago)*0.0008
+                    qty=max(0.05, avg*weekend*wave*trend)
+                    hist.append((d.isoformat(),ing,round(qty,2),'Simulated POS'))
+            c.executemany('INSERT INTO demand_history(demand_date,ingredient,qty,source) VALUES(?,?,?,?)',hist)
+
+        if c.execute('SELECT COUNT(*) FROM suppliers').fetchone()[0] == 0:
+            c.executemany('INSERT INTO suppliers VALUES(?,?,?,?,?)',[
+              ('Coastal Proteins',1,96,4.7,'Preferred for urgent protein orders'),
+              ('Fresh Farms',2,91,4.4,'Competitive protein pricing'),
+              ('Fresh Dairy',1,95,4.6,'Primary dairy supplier'),
+              ('Harbour Seafoods',1,93,4.5,'Daily seafood availability'),
+              ('Prime Meats',2,94,4.6,'Premium meat supplier'),
+              ('Farm Basket',2,92,4.3,'Eggs and farm produce'),
+              ('Green Basket',1,90,4.2,'Daily produce supplier'),
+              ('Grain House',3,97,4.7,'Dry goods supplier'),
+              ('Metro Supplies',3,95,4.5,'General supplies'),
+              ('Frozen Hub',2,96,4.6,'Frozen inventory')
+            ])
 
 
 def query(sql,args=()):
